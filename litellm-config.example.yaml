@@ -1,0 +1,258 @@
+model_list:
+  # ============================================
+  # GROQ MODELS
+  # ============================================
+  
+  # Groq Llama 70B - 8 keys for load balancing (NEW)
+  - model_name: groq-llama-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b  # NEW KEY
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-70b  # NEW KEY
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  
+  # Groq Llama 8B - 7 keys for load balancing
+  - model_name: groq-llama-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  - model_name: groq-llama-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+  
+  # ============================================
+  # CEREBRAS MODELS
+  # ============================================
+  
+  - model_name: cerebras-llama-70b
+    litellm_params:
+      model: cerebras/llama3.1-70b
+      api_key: csk-phk4yj4d5d2jtvr8tp9pxw424p2w26xdr6k33tkw6fd2cxr9
+      rpm: 30
+  - model_name: cerebras-llama-70b
+    litellm_params:
+      model: cerebras/llama3.1-70b
+      api_key: csk-f44epcnyp444kk8xpxm92y3c3wtvjncjm8ty6enr4mxj4ncr
+      rpm: 30
+  - model_name: cerebras-llama-70b
+    litellm_params:
+      model: cerebras/llama3.1-70b
+      api_key: csk-pfevvnkyjet4h6ev32mpf8m2tnktmkxv5t9jmpe3m4n85v5h
+      rpm: 30
+  - model_name: cerebras-llama-70b
+    litellm_params:
+      model: cerebras/llama3.1-70b
+      api_key: csk-v98238wdxvf6vp522e8w2wfp2dfrxv3n238t5ny32yefwdt5
+      rpm: 30
+  
+  # ============================================
+  # SAMBA NOVA MODELS
+  # ============================================
+  
+  - model_name: sambanova-mixtral
+    litellm_params:
+      model: sambanova/Mixtral-8x7B-Instruct-v0.1
+      api_key: 4dd9609d-0293-4602-986c-67956b527389
+      rpm: 30
+  - model_name: sambanova-mixtral
+    litellm_params:
+      model: sambanova/Mixtral-8x7B-Instruct-v0.1
+      api_key: f0590af5-dfbc-4f8b-8357-cbaea6cdda64
+      rpm: 30
+  - model_name: sambanova-mixtral
+    litellm_params:
+      model: sambanova/Mixtral-8x7B-Instruct-v0.1
+      api_key: c375c34d-9dc3-46b8-ba56-62083d462e1a
+      rpm: 30
+  
+  # ============================================
+  # GEMINI MODELS
+  # ============================================
+  
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: YOUR_GEMINI_KEY_HERE
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: YOUR_GEMINI_KEY_HERE
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: YOUR_GEMINI_KEY_HERE
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: YOUR_GEMINI_KEY_HERE
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: YOUR_GEMINI_KEY_HERE
+  
+  # ============================================
+  # MISTRAL MODELS
+  # ============================================
+  
+  - model_name: mistral-large
+    litellm_params:
+      model: mistral/mistral-large-latest
+      api_key: IT1gqYRGm9QgutEsdFDc0szOcySYy4w6
+      rpm: 30
+  - model_name: mistral-large
+    litellm_params:
+      model: mistral/mistral-large-latest
+      api_key: Si9ubJoarkDdpLKUYWPoUWwJu89jqirg
+      rpm: 30
+  
+  # ============================================
+  # OPENROUTER MODELS
+  # ============================================
+  
+  - model_name: openrouter-auto
+    litellm_params:
+      model: openrouter/auto
+      api_key: YOUR_OPENROUTER_KEY_HERE
+      rpm: 30
+  - model_name: openrouter-auto
+    litellm_params:
+      model: openrouter/auto
+      api_key: YOUR_OPENROUTER_KEY_HERE
+      rpm: 30
+  - model_name: openrouter-auto  # NEW KEY
+    litellm_params:
+      model: openrouter/auto
+      api_key: YOUR_OPENROUTER_KEY_HERE
+      rpm: 30
+  - model_name: openrouter-auto  # NEW KEY 2
+    litellm_params:
+      model: openrouter/auto
+      api_key: YOUR_OPENROUTER_KEY_HERE
+      rpm: 30
+  
+  # ============================================
+  # OPENAI-COMPATIBLE ALIASES
+  # ============================================
+  
+  # Map gpt-3.5-turbo to Groq Llama 70B (for OpenClaw compatibility)
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: groq/llama-3.3-70b-versatile
+      api_key: YOUR_GROQ_API_KEY_HERE
+      rpm: 30
+
+router_settings:
+  routing_strategy: least-busy
+  cooldown_time: 60
+  num_retries: 2
+  allowed_fails: 1
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 30
+  max_tokens: 4096
+
+general_settings:
+  master_key: sk-litellm-master-2026
+  port: 4000
+
+
+
+  # ============================================
+  # NEW MODELS — OpenClaw v2.0
+  # ============================================
+
+  # DeepSeek R1 (via OpenRouter — reasoning model)
+  - model_name: deepseek-r1
+    litellm_params:
+      model: openrouter/deepseek/deepseek-r1
+      api_key: YOUR_OPENROUTER_KEY_HERE
+      rpm: 20
+
+  # Qwen3.6 (1M context via OpenRouter)
+  - model_name: qwen-1m
+    litellm_params:
+      model: openrouter/qwen/qwen3-235b-a22b
+      api_key: YOUR_OPENROUTER_KEY_HERE
+      rpm: 20
+
+  # Gemini 2.5 Flash (via Google)
+  - model_name: gemini-2.5-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash-preview-04-17
+      api_key: os.environ/GEMINI_KEY_1  # set in .env
+      rpm: 30
+
+  # Nemotron 120B (via OpenRouter)
+  - model_name: nemotron-120b
+    litellm_params:
+      model: openrouter/nvidia/llama-3.1-nemotron-70b-instruct
+      api_key: YOUR_OPENROUTER_KEY_HERE
+      rpm: 20

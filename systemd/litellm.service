@@ -1,0 +1,15 @@
+[Unit]
+Description=LiteLLM Proxy Server
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ai-system
+EnvironmentFile=/home/ubuntu/ai-system/.env
+ExecStart=/home/ubuntu/ai-system/venv/bin/litellm --config litellm-config.yaml --port 4000
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

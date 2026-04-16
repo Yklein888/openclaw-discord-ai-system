@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenClaw Discord Bot (v2.0)
+After=network.target ai-gateway.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ai-system/discord-bot
+EnvironmentFile=/home/ubuntu/ai-system/.env
+ExecStart=/home/ubuntu/ai-system/venv/bin/python bot.py
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

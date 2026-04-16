@@ -1,0 +1,28 @@
+# Credentials — NEVER commit
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+*.egg-info/
+
+# Runtime / data
+backups/
+*.rdb
+*.log
+*.png
+*.jpg
+
+# Misc
+.DS_Store
+Thumbs.db
+litellm-config.yaml
+force_sync.py
+watchdog.sh
+discord_check.py
