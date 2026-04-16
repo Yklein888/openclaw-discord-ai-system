@@ -24,7 +24,7 @@ import asyncio
 import sys
 import os
 import tempfile
-import math
+import uuid
 
 app = FastAPI(title="OpenClaw Gateway v2.0")
 r = redis.Redis(host="localhost", port=6379, decode_responses=True)
@@ -267,7 +267,14 @@ def update_memory(user_id: str, username: str, message: str, agent: str, duratio
     mem["total_tokens_est"] = mem.get("total_tokens_est", 0) + len(message) // 4 + len(response) // 4
     save_memory(user_id, mem)
 
-# ─── Phase 15: Semantic Memory ────────────────────────────────────────────────
+# ─── Phase 18: Qdrant Semantic Memory ────────────────────────────────────────
+
+try:
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+    QDRANT_AVAILABLE = True
+except ImportError:
+    QDRANT_AVAILABLE = False
 
 GEMINI_EMBED_KEYS = [
     os.getenv("GEMINI_KEY_1", ""),
@@ -276,6 +283,29 @@ GEMINI_EMBED_KEYS = [
     os.getenv("GEMINI_KEY_4", ""),
     os.getenv("GEMINI_KEY_5", ""),
 ]
+
+QDRANT_URL = "http://localhost:6333"
+QDRANT_COLLECTION = "openclaw_memory"
+VECTOR_SIZE = 768
+_qdrant: "QdrantClient" = None
+
+def get_qdrant():
+    global _qdrant
+    if not QDRANT_AVAILABLE:
+        return None
+    if _qdrant is None:
+        try:
+            _qdrant = QdrantClient(url=QDRANT_URL, timeout=10)
+            _qdrant.get_collection(QDRANT_COLLECTION)
+        except Exception:
+            try:
+                _qdrant.create_collection(
+                    QDRANT_COLLECTION,
+                    vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)
+                )
+            except Exception:
+                _qdrant = None
+    return _qdrant
 
 async def get_embedding(text: str) -> list:
     for key in GEMINI_EMBED_KEYS:
@@ -294,47 +324,50 @@ async def get_embedding(text: str) -> list:
             continue
     return []
 
-def cosine_sim(a: list, b: list) -> float:
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    na  = math.sqrt(sum(x * x for x in a))
-    nb  = math.sqrt(sum(y * y for y in b))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
-
 async def store_long_memory(user_id: str, text: str, agent: str = "main"):
     emb = await get_embedding(text)
     if not emb:
         return
-    idx = r.incr(f"longmem:cnt:{user_id}")
-    entry = {"text": text[:600], "embedding": emb, "agent": agent, "timestamp": time.time()}
-    key = f"longmem:{user_id}:{idx}"
-    r.set(key, json.dumps(entry, ensure_ascii=False))
-    r.expire(key, 86400 * 30)
-    if idx > 200:
-        r.delete(f"longmem:{user_id}:{idx - 200}")
+    qd = get_qdrant()
+    if qd:
+        try:
+            qd.upsert(
+                collection_name=QDRANT_COLLECTION,
+                points=[PointStruct(
+                    id=str(int(time.time() * 1000000)),
+                    vector=emb,
+                    payload={
+                        "user_id": user_id,
+                        "text": text[:600],
+                        "agent": agent,
+                        "timestamp": time.time()
+                    }
+                )]
+            )
+        except Exception:
+            pass
 
 async def search_long_memory(user_id: str, query: str, top_k: int = 3) -> list:
     qemb = await get_embedding(query)
     if not qemb:
         return []
-    all_keys = r.keys(f"longmem:{user_id}:*")
-    keys = [k for k in all_keys if not k.startswith("longmem:cnt:")]
-    results = []
-    for key in keys:
-        raw = r.get(key)
-        if not raw:
-            continue
-        try:
-            entry = json.loads(raw)
-            sim = cosine_sim(qemb, entry.get("embedding", []))
-            results.append((sim, entry.get("text", ""), entry.get("agent", ""), entry.get("timestamp", 0)))
-        except Exception:
-            continue
-    results.sort(reverse=True)
-    return [x for x in results[:top_k] if x[0] >= 0.40]
+    qd = get_qdrant()
+    if not qd:
+        return []
+    try:
+        results = qd.search(
+            collection_name=QDRANT_COLLECTION,
+            query_vector=qemb,
+            query_filter=Filter(
+                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+            ),
+            limit=top_k,
+            score_threshold=0.40
+        )
+        return [(r.score, r.payload.get("text",""), r.payload.get("agent",""), r.payload.get("timestamp",0))
+                for r in results]
+    except Exception:
+        return []
 
 # ─── CORE CHAT ────────────────────────────────────────────────────────────────
 
@@ -801,11 +834,18 @@ async def store_memory_endpoint(req: StoreMemoryRequest):
 
 @app.delete("/long-memory/{user_id}")
 async def clear_long_memory(user_id: str):
-    keys = r.keys(f"longmem:{user_id}:*")
-    if keys:
-        r.delete(*keys)
-    r.delete(f"longmem:cnt:{user_id}")
-    return {"status": "cleared", "keys_deleted": len(keys)}
+    qd = get_qdrant()
+    count = 0
+    if qd:
+        try:
+            qd.delete(
+                collection_name=QDRANT_COLLECTION,
+                points_selector=Filter(must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))])
+            )
+            count = 1
+        except Exception:
+            pass
+    return {"status": "cleared", "user_id": user_id, "qdrant": count > 0}
 
 # ─── GITHUB (Phase 12) ────────────────────────────────────────────────────────
 
