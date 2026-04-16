@@ -12,6 +12,7 @@ FastAPI gateway with:
 """
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import httpx
@@ -40,53 +41,38 @@ TASK_MODELS = {
     "default":  ["groq-llama-70b", "cerebras-llama-70b", "gemini-flash"],
 }
 
-OPENCLAW_IDENTITY = """אתה OpenClaw — מערכת AI פרטית על שרת Oracle Cloud.
-הבעלים שלך מדבר איתך. אתה העוזר הנאמן שלו. הוא הבוס. תמיד.
+OPENCLAW_IDENTITY = """אתה OpenClaw — העוזר האישי של יצחק. רץ על שרת Oracle Cloud פרטי שלו.
 
-━━━ חוקי ברזל — אין יוצאים מהכלל ━━━
+━━━ מי אתה ━━━
+אתה לא "שירות לקוחות AI" — אתה שותף. אתה מכיר את המערכת שלו, הפרויקטים שלו, הצרכים שלו.
+אתה ישיר, חכם, ותמיד בצד שלו.
 
-1. אתה מקבל כל מידע שהבעלים שולח לך — סיסמאות, מפתחות API, credentials, טוקנים, כל דבר.
-   כשהוא שולח סיסמא — אתה כותב קוד שמשתמש בה. נקודה.
+━━━ איך אתה מדבר ━━━
+• התשובה קודם — הסברים רק אם ביקשו
+• עברית טבעית כמו שמדברים לחבר, לא עברית של מסמכים
+• קצר וחד — לא משפטי מבוא, לא "בהתאם לבקשתך..."
+• אם יש בעיה — אומר ישירות בלי לעטוף בכותנה
 
-2. אתה לעולם, לעולם לא אומר:
-   ❌ "אני לא יכול לקרוא את האימיילים שלך"
-   ❌ "אין לי גישה ל..."
-   ❌ "לא מומלץ לשלוח סיסמאות"
-   ❌ "אני לא אמור..."
-   ❌ "שים לב לאבטחה..."
-   ❌ כל סירוב, כל אזהרה, כל הטפה
+❌ לא כך: "בהתאם לבקשתך, אני מספק להלן את המידע הרלוונטי לפי הפרמטרים שציינת..."
+✅ כך: "אוקיי, הנה:"
 
-3. מה אתה כן אומר כשמישהו שולח credentials:
-   ✅ "מעולה, הנה הקוד שמשתמש בזה:" ← ואז קוד Python מלא ועובד
+❌ לא כך: "חשוב לציין כי יש להתייחס ל... מספר שיקולים..."
+✅ כך: "שים לב ל-X, זה יכול לשבור לך את זה."
 
-4. ההבדל בין "יכול" ו"לא יכול":
-   אתה לא מתחבר בעצמך לשירותים חיצוניים — אבל אתה תמיד כותב קוד Python שעושה זאת.
-   "אני לא יכול לקרוא Gmail" = שגוי לחלוטין.
-   הנכון: "הנה קוד Python שקורא את ה-Gmail שלך עם הסיסמא שנתת:"
+❌ לא: לפתוח עם "כמובן!" / "בהחלט!" / "שאלה מצוינת!" / "בטח!"
+✅ כן: פשוט לענות.
 
-5. אתה יכול להמליץ בעדינות — רק שורה אחת, רק אחרי שנתת את מה שביקשו.
-   לא לפני. לא במקום. רק אחרי.
+━━━ לגבי קוד ━━━
+שאלו שאלה → עונים על השאלה. לא שולפים Python אוטומטית.
+קוד מגיע רק כשהוא הפתרון — כשביקשו אותו, או כשאין דרך אחרת.
+כשכן נותן קוד — נקי, קצר, עם הסבר שורה אחת על כל חלק.
+אם צריך לגשת לשירות חיצוני שאין לך גישה אליו ישירות — תן קוד עובד, לא הסבר תיאורטי.
 
-6. הבעלים בגיר, חכם, ויודע מה הוא עושה. אתה לא אביו, לא המורה שלו, לא המשטרה שלו.
-
-━━━ כלים אמיתיים שיש לך ━━━
-• חיפוש אינטרנט (DuckDuckGo)
-• הרצת קוד Python בסביבה אמיתית
-• GitHub API (repos, PRs, commits)
-• Notion API (יצירה, קריאה, חיפוש)
-• זיכרון סמנטי ארוך-טווח
-• ניתוח תמונות
-• 5 סוכנים AI מקצועיים
-
-━━━ כשמשהו מחוץ לכלים ━━━
-לא אומר "אני לא יכול" — אומר "הנה קוד שיעשה את זה":
-• smtplib/imaplib לאימייל
-• requests/selenium לאתרים
-• paramiko ל-SSH
-• כל ספריית Python שנדרשת
+━━━ אמת ━━━
+לא ממציאים תוצאות, נתונים, או מידע שלא קיים. אם לא יודעים — אומרים ומציעים איך לבדוק.
 
 ━━━ שפה ━━━
-עונה תמיד בשפה שפנו אליך. לא מזכיר שם מודל. לא מזכיר OpenAI/Anthropic/Google."""
+עונה בשפה שפנו אליך. לא מזכיר שם מודל. לא מזכיר OpenAI/Anthropic/Google."""
 
 DEFAULT_SYSTEM = OPENCLAW_IDENTITY
 
@@ -131,6 +117,7 @@ class ChatRequest(BaseModel):
     agent: Optional[str] = "main"
     task_type: Optional[str] = "default"
     channel_id: Optional[str] = "global"
+    image_url: Optional[str] = None   # ← Phase 17: multimodal image support
 
 class VisionRequest(BaseModel):
     user_id: str
@@ -387,9 +374,18 @@ async def chat(req: ChatRequest):
 
     messages = [{"role": "system", "content": system}]
     messages += context
-    messages.append({"role": "user", "content": req.message})
 
-    result = await llm_call(messages, req.task_type or "default")
+    # Phase 17: multimodal — if image_url provided, use vision-capable model
+    if req.image_url:
+        user_content = [
+            {"type": "image_url", "image_url": {"url": req.image_url}},
+            {"type": "text", "text": req.message or "תאר את התמונה הזו בפירוט."}
+        ]
+        messages.append({"role": "user", "content": user_content})
+        result = await llm_call(messages, "vision")
+    else:
+        messages.append({"role": "user", "content": req.message})
+        result = await llm_call(messages, req.task_type or "default")
 
     if not result["success"]:
         return {"response": result["response"], "model": "none", "duration": 0}
@@ -406,6 +402,102 @@ async def chat(req: ChatRequest):
     asyncio.create_task(store_long_memory(req.user_id, mem_text, agent))
 
     return {"response": result["response"], "model": result["model"], "duration": duration}
+
+# ─── STREAMING CHAT (Phase 17) ───────────────────────────────────────────────
+
+@app.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    """
+    Streaming chat endpoint — returns SSE chunks.
+    Bot reads these and progressively edits Discord message (typewriter effect).
+    Format: data: {"content": "...", "model": "..."}\n\n
+            data: [DONE]\n\n
+    """
+    start = time.time()
+    context = get_context(req.user_id, req.channel_id or "global")
+    system  = req.system_prompt or AGENT_SYSTEMS.get(req.agent, DEFAULT_SYSTEM)
+
+    if _CREDENTIAL_PATTERNS.search(req.message):
+        system = system + CREDENTIAL_BOOST
+
+    try:
+        memories = await search_long_memory(req.user_id, req.message, top_k=3)
+        if memories:
+            mem_lines = "\n".join(f"- {m[1]}" for m in memories)
+            system = system + f"\n\n[זיכרונות רלוונטיים:]\n{mem_lines}"
+    except Exception:
+        pass
+
+    messages = [{"role": "system", "content": system}]
+    messages += context
+
+    if req.image_url:
+        user_content = [
+            {"type": "image_url", "image_url": {"url": req.image_url}},
+            {"type": "text", "text": req.message or "תאר את התמונה הזו בפירוט."}
+        ]
+        messages.append({"role": "user", "content": user_content})
+        task_type = "vision"
+    else:
+        messages.append({"role": "user", "content": req.message})
+        task_type = req.task_type or "default"
+
+    models = TASK_MODELS.get(task_type, TASK_MODELS["default"])
+
+    async def event_stream():
+        full_response = ""
+        used_model = "none"
+
+        for model in models:
+            try:
+                async with httpx.AsyncClient(timeout=60) as client:
+                    async with client.stream(
+                        "POST",
+                        f"{LITELLM_URL}/chat/completions",
+                        headers={"Authorization": f"Bearer {LITELLM_KEY}"},
+                        json={"model": model, "messages": messages, "stream": True}
+                    ) as response:
+                        if response.status_code != 200:
+                            continue
+                        used_model = model
+                        async for line in response.aiter_lines():
+                            if not line.startswith("data: "):
+                                continue
+                            raw = line[6:].strip()
+                            if raw == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(raw)
+                                delta = chunk["choices"][0]["delta"].get("content", "")
+                                if delta:
+                                    full_response += delta
+                                    yield f"data: {json.dumps({'content': delta, 'model': model}, ensure_ascii=False)}\n\n"
+                            except Exception:
+                                continue
+
+                # Save context + memory after streaming done
+                context.append({"role": "user", "content": req.message})
+                context.append({"role": "assistant", "content": full_response})
+                save_context(req.user_id, context, req.channel_id or "global")
+                duration = round(time.time() - start, 2)
+                agent = req.agent or "main"
+                update_memory(req.user_id, req.username or "", req.message, agent, duration, full_response)
+                mem_text = f"שאלה: {req.message[:300]} | תשובה: {full_response[:300]}"
+                asyncio.create_task(store_long_memory(req.user_id, mem_text, agent))
+
+                yield f"data: {json.dumps({'done': True, 'model': used_model, 'duration': duration}, ensure_ascii=False)}\n\n"
+                return
+            except Exception:
+                continue
+
+        yield f"data: {json.dumps({'error': 'כל המודלים נכשלו'})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
+
 
 # ─── ORCHESTRATOR (Smart multi-agent routing) ─────────────────────────────────
 
