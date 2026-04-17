@@ -995,3 +995,13 @@ async def list_agents():
             for name, sys in AGENT_SYSTEMS.items()
         ]
     }
+
+# Route endpoint for smart agent routing
+@app.post("/route")
+async def route_message(req: dict):
+    try:
+        from agent_workflow import route_message as route
+        result = route(req.get("message", ""), req.get("user_id", ""))
+        return result
+    except Exception as e:
+        return {"error": str(e)}

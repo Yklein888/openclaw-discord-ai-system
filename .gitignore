@@ -26,3 +26,5 @@ litellm-config.yaml
 force_sync.py
 watchdog.sh
 discord_check.py
+
+node_modules/

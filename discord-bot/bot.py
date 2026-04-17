@@ -2113,11 +2113,20 @@ async def on_message(message):
         return
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
+            # Get smart routing first
+            agent = 'orchestrator'
+            try:
+                async with session.post('http://localhost:4001/route', json={'message': message.content, 'user_id': str(message.author.id)}) as rresp:
+                    route_data = await rresp.json()
+                    agent = route_data.get('agent', 'orchestrator')
+            except:
+                pass
+            
             payload = {
                 'user_id': str(message.author.id),
                 'message': message.content,
                 'username': str(message.author),
-                'agent': 'orchestrator'
+                'agent': agent
             }
             async with session.post('http://localhost:4001/chat', json=payload) as resp:
                 data = await resp.json()
