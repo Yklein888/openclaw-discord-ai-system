@@ -2103,4 +2103,25 @@ websockify רץ על port 6081.
         await message.reply(f"```{out}```")
 
 
+
+
+@client.event
+async def on_message(message):
+    if message.author.bot:
+        return
+    if message.content.startswith('/'):
+        return
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
+            payload = {
+                'user_id': str(message.author.id),
+                'message': message.content,
+                'username': str(message.author),
+                'agent': 'orchestrator'
+            }
+            async with session.post('http://localhost:4001/chat', json=payload) as resp:
+                data = await resp.json()
+                await message.channel.send(data.get('response', 'error'))
+    except:
+        pass
 client.run(DISCORD_TOKEN)
