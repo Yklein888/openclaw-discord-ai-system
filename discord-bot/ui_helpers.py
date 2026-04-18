@@ -265,3 +265,12 @@ class KiloControlView(discord.ui.View):
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message("✓", ephemeral=True, delete_after=1)
         self.stop()
+
+
+def make_plan_embed(plan: str) -> discord.Embed:
+    e = discord.Embed(
+        title="📋 תוכנית ביצוע",
+        description=f"```\n{plan[:1500]}\n```",
+        color=0x9B59B6,
+    )
+    return e

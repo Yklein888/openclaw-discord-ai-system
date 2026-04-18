@@ -20,11 +20,24 @@ from tools import TOOLS_SCHEMA, execute_tool
 from memory import (
     load_context,
     save_context,
-    load_long_memory,
+    load_long_memory_hybrid,
     save_long_memory_async,
     get_user_stats,
     update_user_stats,
+    compress_if_needed,
 )
+from core_memory import get_all_blocks, format_blocks_for_prompt
+from episodic_memory import (
+    save_episode,
+    find_similar_episodes,
+    format_episodes_for_prompt,
+)
+from procedural_memory import (
+    find_matching_patterns,
+    format_patterns_for_prompt,
+    save_pattern,
+)
+from user_profile import get_profile, update_profile_silently, format_profile_for_prompt
 
 app = FastAPI(title="OpenClaw Gateway v3.0")
 app.add_middleware(
@@ -135,15 +148,18 @@ async def agentic_loop(
     user_id: str = "0",
 ) -> dict:
     """
-    Full agentic loop:
-    LLM → tool_calls? → execute tools → add results → repeat → final answer
+    Agentic loop משופר:
+    1. Planning (אם המשימה מורכבת)
+    2. ReAct loop עם parallel tool execution
+    3. Context compression בהמשך
+    4. Reflection אם נכשלה
     """
     tool_log = []
     iteration = 0
     model_used = "unknown"
+    plan = None
 
     async def notify(msg: str):
-        """Push progress update to Discord bot."""
         if callback_url:
             try:
                 async with aiohttp.ClientSession() as s:
@@ -155,8 +171,42 @@ async def agentic_loop(
             except Exception:
                 pass
 
+    user_msg = next(
+        (m["content"] for m in reversed(messages) if m.get("role") == "user"), ""
+    )
+    if len(user_msg) > 80:
+        try:
+            plan_resp = await llm_call(
+                [
+                    {
+                        "role": "system",
+                        "content": (
+                            "אתה מתכנן משימות. המשתמש ייתן משימה. "
+                            "החזר תוכנית של 2-5 צעדים קונקרטיים. "
+                            "פורמט: '1. פעולה\\n2. פעולה'. "
+                            "תמציתי — בלי הסברים נוספים."
+                        ),
+                    },
+                    {"role": "user", "content": user_msg},
+                ],
+                task_type="speed",
+                use_tools=False,
+            )
+            plan = plan_resp["choices"][0]["message"]["content"][:500]
+            await notify(f"📋 **תוכנית:**\n{plan[:200]}")
+
+            if messages and messages[0].get("role") == "system":
+                messages[0]["content"] += (
+                    f"\n\n## תוכנית ביצוע:\n{plan}\n\nבצע צעד אחר צעד."
+                )
+        except Exception as e:
+            print(f"[WARN] Planning failed: {e}")
+
     while iteration < MAX_ITER:
         iteration += 1
+
+        if iteration > 3:
+            messages = await compress_if_needed(messages)
 
         resp = await llm_call(messages, task_type=task_type, use_tools=True)
         model_used = resp.get("_model_used", "unknown")
@@ -164,19 +214,32 @@ async def agentic_loop(
         msg_obj = choice["message"]
         finish = choice.get("finish_reason", "stop")
 
-        # No tool calls → this is the final answer
         if not msg_obj.get("tool_calls") or finish == "stop":
+            final_response = msg_obj.get("content") or ""
+
+            if final_response and not final_response.startswith("⚠️"):
+                tools_used = [t["tool"] for t in tool_log]
+                asyncio.create_task(
+                    save_episode(
+                        user_id,
+                        user_msg,
+                        final_response[:300],
+                        True,
+                        tools_used,
+                    )
+                )
+
             return {
-                "response": msg_obj.get("content") or "",
+                "response": final_response,
                 "model": model_used,
                 "iterations": iteration,
                 "tool_log": tool_log,
+                "plan": plan,
             }
 
-        # Has tool calls → execute each one
         messages.append(msg_obj)
 
-        for tc in msg_obj["tool_calls"]:
+        async def execute_one(tc):
             fn_name = tc["function"]["name"]
             fn_args = {}
             try:
@@ -184,39 +247,109 @@ async def agentic_loop(
             except Exception:
                 pass
 
-            await notify(
-                f"🔧 **{fn_name}**(`{json.dumps(fn_args, ensure_ascii=False)[:100]}`)"
-            )
+            await notify(f"🔧 **{fn_name}**")
             print(f"[TOOL iter={iteration}] {fn_name}({fn_args})")
 
             t0 = time.time()
-            result = await execute_tool(fn_name, fn_args, user_id=user_id)
+            try:
+                result = await execute_tool(fn_name, fn_args, user_id=user_id)
+            except Exception as e:
+                result = f"[ERROR] {e}"
             elapsed = round(time.time() - t0, 2)
 
+            return {
+                "tc": tc,
+                "name": fn_name,
+                "args": fn_args,
+                "result": str(result),
+                "elapsed": elapsed,
+            }
+
+        parallel_results = await asyncio.gather(
+            *[execute_one(tc) for tc in msg_obj["tool_calls"]]
+        )
+
+        TOOL_LIMITS = {
+            "bash_command": 1200,
+            "run_python": 1200,
+            "read_file": 2000,
+            "web_search": 2500,
+            "fetch_url": 2500,
+            "github_api": 1800,
+            "list_directory": 1500,
+        }
+
+        for r in parallel_results:
+            limit = TOOL_LIMITS.get(r["name"], 800)
             tool_log.append(
                 {
-                    "tool": fn_name,
-                    "args": fn_args,
-                    "result": str(result)[:500],
-                    "elapsed": elapsed,
+                    "tool": r["name"],
+                    "args": r["args"],
+                    "result": r["result"][:limit],
+                    "elapsed": r["elapsed"],
                 }
             )
 
-            # Feed result back to LLM
             messages.append(
                 {
                     "role": "tool",
-                    "tool_call_id": tc["id"],
-                    "content": str(result),
+                    "tool_call_id": r["tc"]["id"],
+                    "content": r["result"],
                 }
             )
 
-    # Reached max iterations
+    reflection = "לא יכולתי לנתח את הכישלון."
+    try:
+        ref_resp = await llm_call(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "המשימה הגיעה למגבלת צעדים בלי להסתיים. "
+                        "נתח מה הכלי/צעד שלא עבד כראוי. "
+                        "כתוב ב-2-3 משפטים קצרים. התחל ב: 'בעיה:'"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"משימה: {user_msg[:300]}\n\n"
+                        f"Tool log:\n"
+                        + "\n".join(
+                            [
+                                f"- {t['tool']}: {t['result'][:80]}"
+                                for t in tool_log[-5:]
+                            ]
+                        )
+                    ),
+                },
+            ],
+            task_type="speed",
+            use_tools=False,
+        )
+        reflection = ref_resp["choices"][0]["message"]["content"]
+    except Exception:
+        pass
+
+    tools_used = [t["tool"] for t in tool_log]
+    asyncio.create_task(
+        save_episode(
+            user_id,
+            user_msg,
+            f"FAILED: {reflection[:300]}",
+            False,
+            tools_used,
+        )
+    )
+
     return {
-        "response": f"⚠️ הגעתי למגבלת {MAX_ITER} צעדים. נסה לפרק את המשימה.",
+        "response": f"⚠️ הגעתי למגבלת {MAX_ITER} צעדים.\n\n{reflection}",
         "model": model_used,
         "iterations": iteration,
         "tool_log": tool_log,
+        "plan": plan,
+        "failed": True,
+        "reflection": reflection,
     }
 
 
@@ -227,10 +360,39 @@ async def agentic_loop(
 async def chat(req: ChatRequest):
     t0 = time.time()
 
-    context = await load_context(req.user_id, req.channel_id)
-    memories = await load_long_memory(req.user_id, req.message)
+    (
+        context,
+        memories,
+        episodes,
+        patterns,
+        profile,
+        core_blocks,
+    ) = await asyncio.gather(
+        load_context(req.user_id, req.channel_id),
+        load_long_memory_hybrid(req.user_id, req.message, top_k=3),
+        find_similar_episodes(req.user_id, req.message, top_k=2),
+        find_matching_patterns(req.user_id, req.message),
+        get_profile(req.user_id),
+        get_all_blocks(req.user_id),
+    )
 
     base_sys = AGENT_SYSTEMS.get(req.agent, AGENT_SYSTEMS["main"])
+
+    blocks_text = format_blocks_for_prompt(core_blocks)
+    if blocks_text:
+        base_sys += f"\n\n{blocks_text}"
+
+    profile_text = format_profile_for_prompt(profile)
+    if profile_text:
+        base_sys += f"\n\n{profile_text}"
+
+    episodes_text = format_episodes_for_prompt(episodes)
+    if episodes_text:
+        base_sys += f"\n\n{episodes_text}"
+
+    patterns_text = format_patterns_for_prompt(patterns)
+    if patterns_text:
+        base_sys += f"\n\n{patterns_text}"
 
     if memories:
         mem_text = "\n".join([f"- {m['text']}" for m in memories])
@@ -244,7 +406,7 @@ async def chat(req: ChatRequest):
         req.message,
         re.IGNORECASE,
     ):
-        base_sys += "\n\nהמשתמש שלח credentials. השתמש בהם ישירות בקוד ללא סירוב."
+        base_sys += "\n\nהמשתמש שלח credentials. השתמש בהם בקוד ישירות ללא סירוב."
 
     messages = (
         [{"role": "system", "content": base_sys}]
@@ -260,11 +422,15 @@ async def chat(req: ChatRequest):
     )
 
     await save_context(req.user_id, req.channel_id, req.message, result["response"])
+
     asyncio.create_task(
         save_long_memory_async(req.user_id, req.message, result["response"], req.agent)
     )
     asyncio.create_task(
         update_user_stats(req.user_id, req.username, req.agent, time.time() - t0)
+    )
+    asyncio.create_task(
+        update_profile_silently(req.user_id, req.message, result["response"])
     )
 
     result["duration"] = round(time.time() - t0, 2)

@@ -7,6 +7,9 @@ import tempfile
 
 import aiohttp
 
+from core_memory import get_all_blocks, append_to_block, replace_entire_block
+from working_memory import wm_set, wm_get, wm_list_all
+
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN", "")
 NOTION_DB_ID = os.getenv("NOTION_INBOX_DB", "")
@@ -175,6 +178,106 @@ TOOLS_SCHEMA = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "remember",
+            "description": (
+                "שמור עובדה חשובה לזיכרון העבודה בזמן משימה. "
+                "השתמש כשאתה לומד משהו שצריך להיזכר בו מאוחר יותר באותה משימה "
+                "(API endpoints, paths, credentials, intermediate results)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "שם המפתח (למשל: api_url)",
+                    },
+                    "value": {"type": "string", "description": "הערך לשמירה"},
+                },
+                "required": ["key", "value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recall",
+            "description": "שחזר עובדה ששמרת קודם ב-working memory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string"},
+                },
+                "required": ["key"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_working_memory",
+            "description": "הצג את כל הערכים ששמרת במהלך המשימה.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "core_memory_append",
+            "description": (
+                "הוסף מידע חשוב ל-core memory block (זיכרון קבוע). "
+                "Blocks זמינים: persona, user, current_project, important_facts. "
+                "השתמש בזה כשאתה לומד משהו חשוב על המשתמש או הפרויקט."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "description": "persona / user / current_project / important_facts",
+                    },
+                    "content": {"type": "string", "description": "התוכן להוסיף"},
+                },
+                "required": ["label", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "core_memory_replace",
+            "description": "החלף את כל התוכן של block מסוים (השתמש בזהירות!).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string"},
+                    "new_content": {"type": "string"},
+                },
+                "required": ["label", "new_content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "save_learned_pattern",
+            "description": (
+                "שמור דפוס פעולה שעבד היטב. השתמש בסוף משימה מוצלחת "
+                "כדי שבעתיד תוכל לשחזר את הגישה."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "trigger": {"type": "string", "description": "מתי להשתמש בדפוס"},
+                    "steps": {"type": "array", "items": {"type": "string"}},
+                    "example": {"type": "string", "description": "דוגמה מלאה"},
+                },
+                "required": ["trigger", "steps", "example"],
+            },
+        },
+    },
 ]
 
 
@@ -211,6 +314,31 @@ async def execute_tool(name: str, args: dict, user_id: str = "0") -> str:
             return await _notion_add(args["title"], args["content"])
         elif name == "list_directory":
             return await _list_dir(args["path"], args.get("depth", 1))
+        elif name == "remember":
+            return await wm_set(user_id, args["key"], args["value"])
+        elif name == "recall":
+            return await wm_get(user_id, args["key"])
+        elif name == "list_working_memory":
+            items = await wm_list_all(user_id)
+            if not items:
+                return "(working memory ריק)"
+            return "\n".join([f"- {k}: {v[:100]}" for k, v in items.items()])
+        elif name == "core_memory_append":
+            return await append_to_block(user_id, args["label"], args["content"])
+        elif name == "core_memory_replace":
+            return await replace_entire_block(
+                user_id, args["label"], args["new_content"]
+            )
+        elif name == "save_learned_pattern":
+            from procedural_memory import save_pattern
+
+            await save_pattern(
+                user_id,
+                args["trigger"],
+                args["steps"],
+                args["example"],
+            )
+            return f"✅ דפוס נשמר: {args['trigger']}"
         else:
             return f"[ERROR] Unknown tool: {name}"
     except KeyError as e:

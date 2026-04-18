@@ -12,3 +12,4 @@ PyGithub==2.4.0
 notion-client==2.2.1
 litellm==1.50.0
 python-dotenv==1.0.1
+rank-bm25==0.2.2
