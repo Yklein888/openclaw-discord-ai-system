@@ -106,5 +106,3 @@ TASK_MODELS = {
         "groq/llama-3.1-8b-instant",
     ],
 }
-    ],
-}
