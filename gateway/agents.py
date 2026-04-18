@@ -84,28 +84,27 @@ AGENT_SYSTEMS = {
 TASK_MODELS = {
     "code": [
         "groq/llama-3.3-70b-versatile",
-        "cerebras/llama3.1-70b",
-        "gemini/gemini-2.0-flash",
+        "groq/llama-3.1-8b-instant",
     ],
     "analysis": [
         "groq/llama-3.3-70b-versatile",
-        "cerebras/llama3.1-70b",
-        "gemini/gemini-2.0-flash",
+        "groq/llama-3.1-8b-instant",
     ],
     "speed": [
         "groq/llama-3.1-8b-instant",
         "groq/llama-3.3-70b-versatile",
     ],
     "vision": [
-        "gemini/gemini-2.0-flash",
+        "groq/llama-3.3-70b-versatile",
     ],
     "reasoning": [
-        "gemini/gemini-2.5-flash",
         "groq/llama-3.3-70b-versatile",
+        "groq/llama-3.1-8b-instant",
     ],
     "default": [
         "groq/llama-3.3-70b-versatile",
-        "cerebras/llama3.1-70b",
-        "gemini/gemini-2.0-flash",
+        "groq/llama-3.1-8b-instant",
+    ],
+}
     ],
 }
