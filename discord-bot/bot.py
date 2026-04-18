@@ -27,7 +27,7 @@ from kilo_bridge import KiloBridge
 
 # ─── Config ───────────────────────────────────────────────────────
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
-GUILD_ID = int(os.environ["DISCORD_GUILD_ID"])
+GUILD_ID = int(os.environ["GUILD_ID"])
 GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:4001")
 
 # ערוצים עם טיפול מיוחד (לא נשלחים ל-agentic loop הרגיל)
